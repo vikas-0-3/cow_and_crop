@@ -2,8 +2,11 @@ import 'package:cow_and_crop/farmer/farmer_profile_page.dart';
 import 'package:cow_and_crop/login_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:cow_and_crop/farmer/product_page.dart';
-import 'package:cow_and_crop/farmer/farmer_home_content.dart'; // import the new home content
+import 'package:cow_and_crop/farmer/farmer_home_content.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:http/http.dart' as http;
+import 'package:cow_and_crop/constants.dart';
+import 'dart:convert';
 
 class FarmerDashboard extends StatefulWidget {
   const FarmerDashboard({Key? key}) : super(key: key);
@@ -14,10 +17,10 @@ class FarmerDashboard extends StatefulWidget {
 
 class _FarmerDashboardState extends State<FarmerDashboard> {
   int _selectedIndex = 0;
+  final String baseUrl = BASE_URL;
 
-  // Update pages: Home now uses FarmerHomeContent
   final List<Widget> _pages = [
-    const FarmerHomeContent(), // Home page content with product counts
+    const FarmerHomeContent(),
     const FarmerProfilePage(),
     const ProductPage(),
   ];
@@ -37,17 +40,15 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
             content: const Text("Are you sure you want to logout?"),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(), // Cancel
+                onPressed: () => Navigator.of(context).pop(),
                 child: const Text("Cancel"),
               ),
               TextButton(
                 onPressed: () async {
-                  Navigator.of(context).pop(); // Dismiss dialog
-                  // Clear SharedPreferences values
+                  Navigator.of(context).pop();
                   SharedPreferences prefs =
                       await SharedPreferences.getInstance();
                   await prefs.clear();
-                  // Navigate to LoginScreen
                   Navigator.pushReplacement(
                     context,
                     MaterialPageRoute(builder: (_) => const LoginScreen()),
@@ -60,6 +61,81 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
               ),
             ],
           ),
+    );
+  }
+
+  void _confirmDeleteAccount() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text("Delete Account"),
+            content: const Text(
+              "Are you sure you want to permanently delete your account? This action cannot be undone.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await _deleteAccount();
+                },
+                child: const Text(
+                  "Delete",
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? userId = prefs.getString("userId");
+
+    if (userId == null || userId.isEmpty) {
+      _showError("User ID is missing");
+      return;
+    }
+
+    final Uri deleteFarmerUri = Uri.parse("${baseUrl}api/farmers/$userId");
+    final Uri deleteUserUri = Uri.parse("${baseUrl}api/users/$userId");
+
+    try {
+      final farmerResponse = await http.delete(deleteFarmerUri);
+      final userResponse = await http.delete(deleteUserUri);
+
+      if (userResponse.statusCode == 200 || farmerResponse.statusCode == 200) {
+        await prefs.clear();
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      } else {
+        String errorMessage = "Failed to delete account";
+        try {
+          final Map<String, dynamic> errorData = jsonDecode(userResponse.body);
+          if (errorData.containsKey("message")) {
+            errorMessage = errorData["message"];
+          }
+        } catch (e) {
+          errorMessage = "Unexpected error occurred.";
+        }
+        _showError(errorMessage);
+      }
+    } catch (e) {
+      _showError("Error occurred while deleting account.");
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
     );
   }
 
@@ -105,6 +181,14 @@ class _FarmerDashboardState extends State<FarmerDashboard> {
             onTap: () {
               Navigator.pop(context);
               _logout();
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.delete_forever),
+            title: const Text("Delete Account"),
+            onTap: () {
+              Navigator.pop(context);
+              _confirmDeleteAccount();
             },
           ),
         ],

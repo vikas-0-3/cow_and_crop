@@ -19,7 +19,7 @@ class _LoginScreenState extends State<LoginScreen> {
   // Controllers for email and password fields
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
-  bool _rememberMe = false;
+  // bool _rememberMe = false;
   bool _isLoading = false;
   String? _errorMessage;
   final String baseUrl = BASE_URL;
@@ -209,29 +209,29 @@ class _LoginScreenState extends State<LoginScreen> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Checkbox(
-                            value: _rememberMe,
-                            onChanged: (bool? value) {
-                              setState(() {
-                                _rememberMe = value ?? false;
-                              });
-                            },
-                            activeColor: Colors.pink,
-                          ),
-                          const Text("Remember me"),
-                        ],
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          // TODO: Implement Forgot Password logic
-                        },
-                        child: const Text(
-                          "Forgot password?",
-                          style: TextStyle(color: Colors.pink),
-                        ),
-                      ),
+                      // Row(
+                      //   children: [
+                      //     Checkbox(
+                      //       value: _rememberMe,
+                      //       onChanged: (bool? value) {
+                      //         setState(() {
+                      //           _rememberMe = value ?? false;
+                      //         });
+                      //       },
+                      //       activeColor: Colors.pink,
+                      //     ),
+                      //     const Text("Remember me"),
+                      //   ],
+                      // ),
+                      // TextButton(
+                      //   onPressed: () {
+                      //     // TODO: Implement Forgot Password logic
+                      //   },
+                      //   child: const Text(
+                      //     "Forgot password?",
+                      //     style: TextStyle(color: Colors.pink),
+                      //   ),
+                      // ),
                     ],
                   ),
                   const SizedBox(height: 20),

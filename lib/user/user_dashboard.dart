@@ -21,8 +21,9 @@ class UserDashboard extends StatefulWidget {
 
 class _UserDashboardState extends State<UserDashboard> {
   int _selectedIndex = 0;
-  int cartCount = 0; // Total number of products in the cart
+  int cartCount = 0;
   final String baseUrl = BASE_URL;
+
   @override
   void initState() {
     super.initState();
@@ -34,7 +35,7 @@ class _UserDashboardState extends State<UserDashboard> {
       HomeContent(
         onViewAll: () {
           setState(() {
-            _selectedIndex = 3; // Products page index
+            _selectedIndex = 3;
           });
         },
       ),
@@ -45,7 +46,6 @@ class _UserDashboardState extends State<UserDashboard> {
     ];
   }
 
-  // Fetch cart count from API based on userId
   Future<void> _fetchCartCount() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     String? userId = prefs.getString("userId");
@@ -59,7 +59,6 @@ class _UserDashboardState extends State<UserDashboard> {
     try {
       final response = await http.get(uri);
       if (response.statusCode == 200) {
-        // Assume API returns an array with one cart object having a 'products' field.
         List<dynamic> cartData = jsonDecode(response.body);
         int count = 0;
         if (cartData.isNotEmpty) {
@@ -89,7 +88,6 @@ class _UserDashboardState extends State<UserDashboard> {
     setState(() {
       _selectedIndex = index;
     });
-    // Refresh cart count when navigating to Cart page (index 4)
     if (index == 4) {
       _fetchCartCount();
     }
@@ -104,12 +102,12 @@ class _UserDashboardState extends State<UserDashboard> {
             content: const Text("Are you sure you want to logout?"),
             actions: [
               TextButton(
-                onPressed: () => Navigator.of(context).pop(), // Cancel
+                onPressed: () => Navigator.of(context).pop(),
                 child: const Text("Cancel"),
               ),
               TextButton(
                 onPressed: () async {
-                  Navigator.of(context).pop(); // Dismiss dialog
+                  Navigator.of(context).pop();
                   SharedPreferences prefs =
                       await SharedPreferences.getInstance();
                   await prefs.clear();
@@ -133,6 +131,82 @@ class _UserDashboardState extends State<UserDashboard> {
       _selectedIndex = 4;
     });
     _fetchCartCount();
+  }
+
+  void _confirmDeleteAccount() {
+    showDialog(
+      context: context,
+      builder:
+          (context) => AlertDialog(
+            title: const Text("Delete Account"),
+            content: const Text(
+              "Are you sure you want to permanently delete your account? This action cannot be undone.",
+            ),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(context).pop(),
+                child: const Text("Cancel"),
+              ),
+              TextButton(
+                onPressed: () async {
+                  Navigator.of(context).pop();
+                  await _deleteAccount();
+                },
+                child: const Text(
+                  "Delete",
+                  style: TextStyle(color: Colors.red),
+                ),
+              ),
+            ],
+          ),
+    );
+  }
+
+  Future<void> _deleteAccount() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    String? userId = prefs.getString("userId");
+
+    if (userId == null || userId.isEmpty) {
+      _showError("User ID is missing");
+      return;
+    }
+
+    final Uri uri = Uri.parse("${baseUrl}api/users/$userId");
+
+    try {
+      final response = await http.delete(uri);
+
+      if (response.statusCode == 200 || response.statusCode == 204) {
+        await prefs.clear();
+        if (!mounted) return;
+        Navigator.pushReplacement(
+          context,
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+        );
+      } else {
+        // Error case: print status and body
+        String errorMessage = "Failed to delete account";
+
+        try {
+          final Map<String, dynamic> errorData = jsonDecode(response.body);
+          if (errorData.containsKey("message")) {
+            errorMessage = errorData["message"];
+          }
+        } catch (e) {
+          errorMessage = "Unexpected error occurred.";
+        }
+
+        _showError(errorMessage);
+      }
+    } catch (e) {
+      _showError("Error occurred while deleting account.");
+    }
+  }
+
+  void _showError(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), backgroundColor: Colors.red),
+    );
   }
 
   Widget _buildDrawer() {
@@ -215,7 +289,6 @@ class _UserDashboardState extends State<UserDashboard> {
               );
             },
           ),
-
           const Divider(),
           ListTile(
             leading: const Icon(Icons.lock),
@@ -225,6 +298,14 @@ class _UserDashboardState extends State<UserDashboard> {
               _logout();
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.delete_forever),
+            title: const Text("Delete Account"),
+            onTap: () {
+              Navigator.pop(context);
+              _confirmDeleteAccount();
+            },
+          ),
         ],
       ),
     );
@@ -232,7 +313,6 @@ class _UserDashboardState extends State<UserDashboard> {
 
   @override
   Widget build(BuildContext context) {
-    // Build bottom nav items with a badge for the Cart option
     final bottomNavItems = [
       const BottomNavigationBarItem(icon: Icon(Icons.home), label: "Home"),
       const BottomNavigationBarItem(icon: Icon(Icons.list), label: "Orders"),
